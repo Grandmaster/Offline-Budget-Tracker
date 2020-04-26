@@ -5,6 +5,7 @@
 const files_to_cache = ["/", "/index.html", "/index.js", "/styles.css"];
 
 const cache_name = "static-cache";
+const data_cache_name = "data-cache";
 
 // Installing the service worker
 self.addEventListener("install", function (evt) {
@@ -16,4 +17,62 @@ self.addEventListener("install", function (evt) {
   );
 
   self.skipWaiting();
+});
+
+// Activating the current service worker
+self.addEventListener("activate", function (evt) {
+  evt.waitUntil(
+    caches.keys().then((keyList) => {
+      return Promise.all(
+        keyList.map((key) => {
+          if (key !== cache_name && key !== data_cache_name) {
+            console.log("Removing old cache data", key);
+            return caches.delete(key);
+          }
+        })
+      );
+    })
+  );
+
+  self.clients.claim();
+});
+
+// Fetching using the service worker
+self.addEventListener("fetch", function (event) {
+  console.log(
+    event.request,
+    fetch(event.request).then((response) => {
+      return response.url;
+    })
+  );
+  // Fetching data
+  if (event.request.url.includes("/api/")) {
+    event.respondWith(
+      caches.open(data_cache_name).then((cache) => {
+        return fetch(event.request)
+          .then((response) => {
+            // Clones data into data_cache if request was successful
+            if (response.status == 200) {
+              console.log("Data successfully added to the cache!");
+              cache.put(event.request, response.clone());
+            }
+          })
+          .catch((err) => {
+            // If request was unsuccessful, tries to grab data from cache, in case it is there
+            console.log(err);
+            return cache.match(event.request);
+          });
+      })
+    );
+    return;
+  }
+  // Fetching files
+  event.respondWith(
+    caches.open(cache_name).then((cache) => {
+      return cache.match(event.request).then((response) => {
+        // fetches using the network if resource is not in the cache
+        return response || fetch(event.request);
+      });
+    })
+  );
 });
