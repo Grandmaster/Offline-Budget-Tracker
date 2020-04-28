@@ -40,34 +40,63 @@ self.addEventListener("activate", function (evt) {
 });
 
 // Fetching using the service worker
-self.addEventListener("fetch", function (event) {
-  // Fetching data
+self.addEventListener("fetch", async function (event) {
+  // Fetching data from indexedDB
   if (event.request.url.includes("/api/")) {
-    event.waitUntil(
-      caches.open(data_cache_name).then((cache) => {
-        return fetch(event.request)
-          .then((response) => {
-            // Clones data into data_cache if request was successful
-            if (response.status == 200) {
-              cache.put(event.request, response.clone());
-            }
-          })
-          .catch((err) => {
-            // If request was unsuccessful, tries to grab data from cache, in case it is there
-            console.log(err);
-            return cache.match(event.request);
-          });
-      })
-    );
-    return;
+    await getDBData(event, (result) => {
+      console.log(result);
+      event.respondWith(result);
+    });
   }
+  // Fetching data from cache
+  // if (event.request.url.includes("/api/")) {
+  //   event.waitUntil(
+  //     caches.open(data_cache_name).then((cache) => {
+  //       return fetch(event.request)
+  //         .then((response) => {
+  //           // Clones data into data_cache if request was successful
+  //           if (response.status == 200) {
+  //             cache.put(event.request, response.clone());
+  //           }
+  //         })
+  //         .catch((err) => {
+  //           // If request was unsuccessful, tries to grab data from cache, in case it is there
+  //           console.log(err);
+  //           return cache.match(event.request);
+  //         });
+  //     })
+  //   );
+  //   return;
+  // }
   // Fetching files
-  event.respondWith(
-    caches.open(cache_name).then((cache) => {
-      return cache.match(event.request).then((response) => {
-        // fetches using the network if resource is not in the cache
-        return response || fetch(event.request);
-      });
-    })
-  );
+  // event.respondWith(
+  //   caches.open(cache_name).then((cache) => {
+  //     return cache.match(event.request).then((response) => {
+  //       // fetches using the network if resource is not in the cache
+  //       return response || fetch(event.request);
+  //     });
+  //   })
+  // );
 });
+
+var getDBData = async function (event, cb) {
+  var request = await indexedDB.open("transactionStore", 1);
+  request.onupgradeneeded = function (event) {
+    var db = event.target.result;
+    var objectStore = db.createObjectStore("Finances", {
+      autoIncrement: true,
+    });
+  };
+  request.onsuccess = function (event) {
+    console.log("I opened indexedDB from the service worker!");
+    var db = event.target.result;
+    var objectStore = db.transaction(["Finances"]).objectStore("Finances");
+    var storeRequest = objectStore.getAll();
+
+    storeRequest.onsuccess = function (event) {
+      console.log("Got all results from indexedDB");
+      console.log(storeRequest.result);
+      cb(storeRequest.result);
+    };
+  };
+};
