@@ -1,8 +1,10 @@
 // File that will allow the user to use the site even when offline.
 // ===============================================================
 
+// Test comment
+
 // Files to cache
-const files_to_cache = ["/", "/index.html", "/index.js", "/styles.css"];
+const files_to_cache = ["/", "/index.html", "/js/index.js", "/styles.css"];
 
 const cache_name = "static-cache";
 const data_cache_name = "data-cache";
@@ -39,21 +41,14 @@ self.addEventListener("activate", function (evt) {
 
 // Fetching using the service worker
 self.addEventListener("fetch", function (event) {
-  console.log(
-    event.request,
-    fetch(event.request).then((response) => {
-      return response.url;
-    })
-  );
   // Fetching data
   if (event.request.url.includes("/api/")) {
-    event.respondWith(
+    event.waitUntil(
       caches.open(data_cache_name).then((cache) => {
         return fetch(event.request)
           .then((response) => {
             // Clones data into data_cache if request was successful
             if (response.status == 200) {
-              console.log("Data successfully added to the cache!");
               cache.put(event.request, response.clone());
             }
           })
