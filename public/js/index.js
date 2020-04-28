@@ -156,20 +156,20 @@ document.querySelector("#sub-btn").onclick = function () {
 saveRecord = function (data) {
   // Opening indexDB for storing data offline
   const request = window.indexedDB.open("transactionStore", 1);
-  // Creating Object store with auto-incrementing id
-  request.onupgradeneeded = ({ target }) => {
-    const db = target.result;
-    const objectStore = db.createObjectStore("transactionStore", {
-      autoIncrement: true,
-    });
+  console.log(request);
+  request.onsuccess = function (event) {
+    console.log(request.result);
+    var db = event.target.result;
+    // Adding POST data
+    var transaction = db.transaction(["Finances"], "readwrite");
+    var financeStore = transaction.objectStore("Finances");
+    var transactionRequest = financeStore.add(data);
+    transactionRequest.onsuccess = function (event) {
+      console.log(event);
+    };
   };
-
-  // Creating transaction to write to database
-  request.onsuccess = function () {
-    const db = request.result;
-    const transaction = db.transaction(["transactionStore"], "readwrite");
-    const transactionStore = transaction.objectStore("transactionStore");
-    // Adding data
-    transactionStore.add(data);
+  request.onupgradeneeded = function (event) {
+    var db = event.target.result;
+    var objectStore = db.createObjectStore("Finances", { autoIncrement: true });
   };
 };
